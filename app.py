@@ -6,38 +6,45 @@ ACCESS_KEY = os.getenv('BITHUMB_ACCESS')
 SECRET_KEY = os.getenv('BITHUMB_SECRET')
 bithumb = pybithumb.Bithumb(ACCESS_KEY, SECRET_KEY)
 
-print("🧪 BTC 안전 테스트 봇 시작!")
-print(f"키 로드: {ACCESS_KEY[:8]}...")
+print("💎 최적화 BTC 자동매매 (4만/2.5%↓→4.5%↑)")
+print(f"키: {ACCESS_KEY[:8]}... | 24시간 무중단")
+
+TRADE_AMOUNT = 40000
+BUY_DROP = 0.975      # 2.5%↓
+SELL_RISE = 1.045     # 4.5%↑
+HOLDING = False
+LAST_PRICE = 0
 
 while True:
     try:
-        # 1. 현재가 (인증 필요 없음)
         price = pybithumb.get_current_price("BTC")
-        print(f"💰 BTC 현재가: {price:,}원")
+        print(f"[{time.strftime('%H:%M:%S')}] {price:,}")
         
-        # 2. 잔고 조회 (오류시 건너뛰기)
-        try:
+        if LAST_PRICE == 0:
+            LAST_PRICE = price
+        
+        # 매수: 2.5%↓
+        if not HOLDING and price <= LAST_PRICE * BUY_DROP:
+            print("🟢 2.5%↓ 매수!")
+            order = bithumb.buy_market_order("BTC", TRADE_AMOUNT)
+            print(f"✅ {order}")
+            HOLDING = True
+            LAST_PRICE = price
+            
+        # 매도: 4.5%↑  
+        elif HOLDING and price >= LAST_PRICE * SELL_RISE:
+            print("🔴 4.5%↑ 매도!")
             balance = bithumb.get_balance("BTC")
-            if 'data' in balance:
-                total_krw = float(balance['data'].get('total_account', 0))
-                btc_balance = float(balance['data'].get('BTC', 0))
-                print(f"✅ 잔고 - 원화: {total_krw:,.0f}원, BTC: {btc_balance:.6f}")
-            else:
-                print("⚠️  잔고 조회 제한됨")
-        except:
-            print("⚠️  잔고 조회 스킵 (API 제한)")
-        
-        # 3. 테스트 매매 시뮬레이션
-        test_amount = 50000  # 5만원 테스트
-        test_buy_price = price * 0.98
-        test_sell_price = price * 1.02
-        
-        print(f"🟢 테스트 매수: {test_amount:,}원 ({test_buy_price:,.0f})")
-        print(f"🔴 테스트 매도: {test_amount/price:.6f}BTC ({test_sell_price:,.0f})")
-        print("=" * 50)
-        
-        time.sleep(30)
+            btc = float(balance['data'].get('BTC', 0))
+            order = bithumb.sell_market_order("BTC", btc)
+            print(f"✅ {order}")
+            HOLDING = False
+            LAST_PRICE = price
+            
+        print(f"상태: {'🟢보유' if HOLDING else '⚪대기'} | 기준: {LAST_PRICE:,}")
+        print("-"*40)
+        time.sleep(15)
         
     except Exception as e:
-        print(f"❌ 오류: {e}")
-        time.sleep(30)
+        print(f"❌ {e}")
+        time.sleep(15)
