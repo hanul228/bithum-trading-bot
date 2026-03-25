@@ -6,33 +6,37 @@ ACCESS_KEY = os.getenv('BITHUMB_ACCESS')
 SECRET_KEY = os.getenv('BITHUMB_SECRET')
 bithumb = pybithumb.Bithumb(ACCESS_KEY, SECRET_KEY)
 
-print("🧪 BTC 테스트 매매 봇 시작!")
+print("🧪 BTC 안전 테스트 봇 시작!")
 print(f"키 로드: {ACCESS_KEY[:8]}...")
 
 while True:
     try:
-        # 1. 잔고 확인 (실제 데이터)
-        balance = bithumb.get_balance("BTC")
-        total_krw = float(balance['data']['total_account'])
-        btc_balance = float(balance['data']['BTC'])
+        # 1. 현재가 (인증 필요 없음)
+        price = pybithumb.get_current_price("BTC")
+        print(f"💰 BTC 현재가: {price:,}원")
         
-        print(f"💰 원화: {total_krw:,.0f}원")
-        print(f"₿ BTC: {btc_balance:.6f}")
-        print("-" * 40)
+        # 2. 잔고 조회 (오류시 건너뛰기)
+        try:
+            balance = bithumb.get_balance("BTC")
+            if 'data' in balance:
+                total_krw = float(balance['data'].get('total_account', 0))
+                btc_balance = float(balance['data'].get('BTC', 0))
+                print(f"✅ 잔고 - 원화: {total_krw:,.0f}원, BTC: {btc_balance:.6f}")
+            else:
+                print("⚠️  잔고 조회 제한됨")
+        except:
+            print("⚠️  잔고 조회 스킵 (API 제한)")
         
-        # 2. 테스트 매수 주문 (실제 주문 X)
-        test_buy_price = pybithumb.get_current_price("BTC") * 0.98
-        test_buy_amount = total_krw * 0.01  # 1% 테스트
+        # 3. 테스트 매매 시뮬레이션
+        test_amount = 50000  # 5만원 테스트
+        test_buy_price = price * 0.98
+        test_sell_price = price * 1.02
         
-        print(f"🟢 테스트 매수: {test_buy_amount:,.0f}원 ({test_buy_price:,.0f}원)")
-        
-        # 3. 테스트 매도 주문  
-        test_sell_price = pybithumb.get_current_price("BTC") * 1.02
-        print(f"🔴 테스트 매도: {btc_balance:.6f}BTC ({test_sell_price:,.0f}원)")
-        
+        print(f"🟢 테스트 매수: {test_amount:,}원 ({test_buy_price:,.0f})")
+        print(f"🔴 테스트 매도: {test_amount/price:.6f}BTC ({test_sell_price:,.0f})")
         print("=" * 50)
         
-        time.sleep(30)  # 30초 대기
+        time.sleep(30)
         
     except Exception as e:
         print(f"❌ 오류: {e}")
