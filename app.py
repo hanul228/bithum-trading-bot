@@ -232,17 +232,19 @@ def main_loop():
 
 if __name__ == "__main__":
     """Cloudtype 24/7 실행 최적화"""
-    global RESTART_COUNT
+    global RESTART_COUNT  # ✅ 최상단으로 이동!
     
     logger.info("🤖 Cloudtype BTC Trading Bot v4.6 시작!")
     send_telegram(f"☁️ <b>Cloudtype v4.6 시작!</b>\n⏰ {datetime.now().strftime('%H:%M:%S')}\n🚀 24/7 모드 활성화")
     
+    RESTART_COUNT = 0  # 할당은 global 선언 뒤에!
+    
     while True:
         try:
-            RESTART_COUNT += 1
             logger.info(f"🤖 봇 재시작 #{RESTART_COUNT}")
             main_loop()
         except Exception as e:
-            logger.error(f"🔄 치명적 오류 (재시작): {e}")
-            send_telegram(f"🔄 <b>봇 재시작됨</b>\n❌ 오류: {str(e)[:100]}")
+            RESTART_COUNT += 1  # global 영역 내 할당 OK
+            logger.error(f"🔄 치명적 오류 (재시작 #{RESTART_COUNT}): {e}")
+            send_telegram(f"🔄 <b>봇 재시작됨 #{RESTART_COUNT}</b>\n❌ 오류: {str(e)[:100]}")
             time.sleep(30)
