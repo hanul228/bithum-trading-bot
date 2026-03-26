@@ -13,11 +13,12 @@ if not ACCESS_KEY or not SECRET_KEY:
 
 bithumb = pybithumb.Bithumb(ACCESS_KEY, SECRET_KEY)
 
-print("🚀 BTC 자동매매 v4.0 [3중폴백+실시간ticker+완벽안정]")
+print("🚀 BTC 자동매매 v4.1 [매수1%↓|매도2%↑|5만원|3중폴백+실시간ticker]")
 print(f"키: {ACCESS_KEY[:8]}*** | BTC | 24/7 무중단")
 print("=" * 70)
 
-TRADE_AMOUNT = 40000
+# ===== 네 요청사항 반영 =====
+TRADE_AMOUNT = 50000  # 5만원으로 변경
 MARKET = "BTC"
 candles_10min = deque(maxlen=40)
 HOLDING = False
@@ -57,7 +58,7 @@ def get_data_source():
 
     # 2️⃣ 2순위: 현재가
     try:
-        price = pybithumb.get_current_price(MARKET)
+        price = bithumb.get_current_price(MARKET)
         if price:
             api_success += 1
             return {
@@ -100,9 +101,9 @@ def get_balance_btc_safe():
         return 0.0
 
 def analyze_market_safe():
-    """시장 분석"""
+    """시장 분석 (기본값 1%, 2%로 수정)"""
     if len(candles_10min) < 20:
-        return 0.025, 0.045, f"⏳ 데이터수집중 ({len(candles_10min)}/20)"
+        return 0.01, 0.02, f"⏳ 데이터수집중 ({len(candles_10min)}/20)"  # 1%, 2% 기본값
     
     recent = list(candles_10min)[-10:]
     prior = list(candles_10min)[-20:-10]
@@ -116,7 +117,7 @@ def analyze_market_safe():
         recent_vol = sum(c['volume'] for c in recent) / 10
         vol_trend = (recent_vol / prior_vol - 1) if prior_vol else 0
         
-        base_buy, base_sell = 0.025, 0.045
+        base_buy, base_sell = 0.01, 0.02  # 네 요청: 1%, 2%
         
         if vol_trend > 0.3:
             momentum = "🔥 거래량폭발"
@@ -128,11 +129,11 @@ def analyze_market_safe():
             momentum = "➡️ 안정"
             buy_drop, sell_rise = base_buy, base_sell
             
-        return max(0.015, min(0.035, buy_drop)), max(0.04, min(0.06, sell_rise)), momentum
+        return max(0.008, min(0.015, buy_drop)), max(0.018, min(0.03, sell_rise)), momentum
     except:
-        return 0.025, 0.045, "❓ 분석오류"
+        return 0.01, 0.02, "❓ 분석오류"  # 1%, 2% 기본값
 
-print("🔄 데이터 수집 시작... 5분후 기준가 → 20분후 자동매매")
+print("🔄 데이터 수집 시작... 5분후 기준가 → 20분후 자동매매 (매수1%↓|매도2%↑|5만원)")
 print("=" * 70)
 
 while True:
@@ -159,7 +160,7 @@ while True:
         if LAST_PRICE == 0 and len(candles_10min) >= 5:
             LAST_PRICE = price
             print(f"📊 기준가 설정: {safe_price_format(LAST_PRICE)} | "
-                  f"매수:{2.5:.1f}%↓ 매도:{4.5:.1f}%↑")
+                  f"매수:1.0%↓ 매도:2.0%↑ | 금액:50,000원")
         
         # 자동매매 시작 (20개 데이터)
         if len(candles_10min) >= 20 and LAST_PRICE > 0:
@@ -167,9 +168,9 @@ while True:
             print(f"🎯 {momentum} | 매수:{buy_drop*100:.1f}%↓ | "
                   f"매도:{sell_rise*100:.1f}%↑")
             
-            # 매수 조건
+            # 매수 조건 (1% 기준)
             if not HOLDING and price <= LAST_PRICE * (1 - buy_drop):
-                print("🟢 [매수실행]")
+                print("🟢 [매수실행] 50,000원")
                 order = bithumb.buy_market_order(MARKET, TRADE_AMOUNT)
                 print(f"✅ 매수: {order}")
                 trade_count += 1
@@ -177,7 +178,7 @@ while True:
                     HOLDING = True
                 LAST_PRICE = price
             
-            # 매도 조건
+            # 매도 조건 (2% 기준)
             elif HOLDING and price >= LAST_PRICE * (1 + sell_rise):
                 print("🔴 [매도실행]")
                 btc_balance = get_balance_btc_safe()
