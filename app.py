@@ -5,7 +5,7 @@ import csv
 import requests
 from collections import deque
 from datetime import datetime
- 
+
 # 환경변수 안전확인
 ACCESS_KEY = os.getenv('BITHUMB_ACCESS')
 SECRET_KEY = os.getenv('BITHUMB_SECRET')
