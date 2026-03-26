@@ -18,11 +18,11 @@ if not ACCESS_KEY or not SECRET_KEY:
 
 bithumb = pybithumb.Bithumb(ACCESS_KEY, SECRET_KEY)
 
-print("🚀 BTC 자동매매 v4.5.1 [긴급패치|텔레+CSV|3봉하락]")
+print("🚀 BTC 자동매매 v4.5.2 [텔레그램완전수정|CSV|3봉하락]")
 print(f"키: {ACCESS_KEY[:8]}*** | ChatID:8402630379 | BTC")
 print("=" * 70)
 
-# ===== v4.5.1 설정 =====
+# ===== v4.5.2 설정 =====
 TRADE_AMOUNT = 50000
 MARKET = "BTC"
 recent_prices = deque(maxlen=10)
@@ -34,20 +34,38 @@ total_profit = 0.0
 PROFIT_LOG = 'btc_profit_v4.5.csv'
 
 def safe_price_format(price):
+    """가격 포맷"""
     try:
         return f"{float(price):,.0f}"
     except:
         return "N/A"
 
+def html_safe(text):
+    """HTML 안전 변환 (텔레그램 필수)"""
+    if not text:
+        return ""
+    return (str(text)
+            .replace('&', '&amp;')
+            .replace('<', '&lt;')
+            .replace('>', '&gt;')
+            .replace('"', '&quot;'))
+
 def send_telegram(msg):
-    """텔레그램 (ChatID:8402630379 고정)"""
+    """텔레그램 완전 안전화"""
     if not TELEGRAM_TOKEN:
         print("⚠️ TELEGRAM_TOKEN 미설정 (GitHub Secrets)")
         return False
     
     try:
+        # 줄바꿈 수정 + HTML 안전화 + 길이 제한
+        safe_msg = html_safe(msg).replace('\\n', '\n')[:4090]
         url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-        data = {'chat_id': TELEGRAM_CHAT_ID, 'text': msg[:4096], 'parse_mode': 'HTML', 'disable_web_page_preview': True}
+        data = {
+            'chat_id': TELEGRAM_CHAT_ID, 
+            'text': safe_msg, 
+            'parse_mode': 'HTML', 
+            'disable_web_page_preview': True
+        }
         response = requests.post(url, data=data, timeout=5)
         if response.status_code == 200:
             print("📱 텔레그램 전송 성공!")
@@ -60,6 +78,7 @@ def send_telegram(msg):
         return False
 
 def log_profit(action, price, profit_pct=0, qty=0, note=""):
+    """CSV 수익 기록"""
     global total_profit
     try:
         now = datetime.now()
@@ -77,6 +96,7 @@ def log_profit(action, price, profit_pct=0, qty=0, note=""):
         pass
 
 def get_current_price_safe():
+    """현재가 3중 폴백"""
     global api_success
     try:
         ticker = pybithumb.get_ticker(MARKET)
@@ -101,6 +121,7 @@ def get_current_price_safe():
     return None, None
 
 def simple_entry_signal(price):
+    """3중 진입 신호"""
     if len(recent_prices) < 5:
         return False, f"⏳ 데이터 {len(recent_prices)}/5"
     
@@ -118,12 +139,12 @@ def simple_entry_signal(price):
     return False, "➡️ 대기중"
 
 def get_balance_safe(currency="KRW"):
-    """원화/KRW/BTC 잔고 수정"""
+    """원화/BTC 잔고"""
     try:
         balance = bithumb.get_balance(MARKET if currency=="BTC" else "KRW")
         if isinstance(balance, (list, tuple)):
             if currency == "KRW":
-                return float(balance[2]) if len(balance) > 2 else 0.0  # 원화 total
+                return float(balance[2]) if len(balance) > 2 else 0.0
             elif currency == "BTC":
                 return float(balance[0]) + float(balance[1]) if len(balance) > 1 else 0.0
         elif isinstance(balance, dict):
@@ -132,9 +153,15 @@ def get_balance_safe(currency="KRW"):
     except:
         return 0.0
 
-# 🚀 v4.5.1 시작!
-print("🎯 v4.5.1 긴급패치 버전 시작! (원화+텔레그램 수정)")
-first_start = send_telegram("🚀 <b>BTC v4.5.1 시작!</b>\n⏰ 긴급패치 적용\n📱 ChatID:8402630379\n💰 원화 잔고 확인")
+# 🚀 v4.5.2 텔레그램 완전수정 시작!
+print("🎯 v4.5.2 텔레그램 완전수정 버전!")
+first_start = send_telegram(
+    f"🚀 <b>BTC v4.5.2 시작!</b>\n"
+    f"⏰ {datetime.now().strftime('%H:%M:%S')}\n"
+    f"📱 긴급패치: HTML 안전화 완료\n"
+    f"💰 ChatID:8402630379\n"
+    f"⚙️ 원화 잔고 자동확인"
+)
 print(f"텔레그램 첫알림: {'성공' if first_start else '실패 (TOKEN 필요)'}")
 print("=" * 70)
 
@@ -160,7 +187,7 @@ while True:
             
             # 🟢 매수
             if signal_ok and not HOLDING and krw_balance >= TRADE_AMOUNT * 1.01:
-                print(f"🟢 [v4.5.1매수] 50,000원 | {signal_msg}")
+                print(f"🟢 [v4.5.2매수] 50,000원 | {signal_msg}")
                 order = bithumb.buy_market_order(MARKET, TRADE_AMOUNT)
                 print(f"✅ 매수결과: {order}")
                 trade_count += 1
@@ -171,7 +198,11 @@ while True:
                     qty = TRADE_AMOUNT / price
                     log_profit('매수', price, qty=qty, note=signal_msg)
                     
-                    msg = f"🚀 <b>BTC v4.5.1 매수!</b>\n⏰ {datetime.now().strftime('%H:%M:%S')}\n💰 {safe_price_format(price)}원\n📈 {signal_msg}\n📊 총거래: {trade_count}회"
+                    msg = (f"🚀 <b>BTC v4.5.2 매수!</b>\n"
+                           f"⏰ {datetime.now().strftime('%H:%M:%S')}\n"
+                           f"💰 {html_safe(safe_price_format(price))}원\n"
+                           f"📈 {html_safe(signal_msg)}\n"
+                           f"📊 총거래: <b>{trade_count}</b>회")
                     send_telegram(msg)
                 else:
                     print(f"⚠️ 매수실패: {order}")
@@ -184,7 +215,7 @@ while True:
                 profit_krw = TRADE_AMOUNT * profit_pct / 100
                 total_profit += profit_krw
                 
-                print(f"🔴 [v4.5.1매도] +{profit_pct:.1f}% | +{safe_price_format(profit_krw)}")
+                print(f"🔴 [v4.5.2매도] +{profit_pct:.1f}% | +{safe_price_format(profit_krw)}")
                 
                 btc_balance = get_balance_safe("BTC")
                 if btc_balance > 0.00001:
@@ -196,7 +227,11 @@ while True:
                         ENTRY_PRICE = 0
                         log_profit('매도', price, profit_pct, qty=btc_balance, note=f"+{profit_krw:,.0f}원")
                         
-                        msg = f"🔴 <b>BTC v4.5.1 매도!</b>\n⏰ {datetime.now().strftime('%H:%M:%S')}\n💰 {safe_price_format(price)}원 <b>(+{profit_pct:.1f}%)</b>\n💵 +{safe_price_format(profit_krw)}원\n📊 누적: <b>{safe_price_format(total_profit)}</b>"
+                        msg = (f"🔴 <b>BTC v4.5.2 매도!</b>\n"
+                               f"⏰ {datetime.now().strftime('%H:%M:%S')}\n"
+                               f"💰 {html_safe(safe_price_format(price))}원 <b>(+{profit_pct:.1f}%)</b>\n"
+                               f"💵 +{html_safe(safe_price_format(profit_krw))}원\n"
+                               f"📊 누적: <b>{html_safe(safe_price_format(total_profit))}</b>")
                         send_telegram(msg)
         
         status = "🟢보유중" if HOLDING else "⚪대기중"
@@ -207,6 +242,10 @@ while True:
         time.sleep(15)
         
     except KeyboardInterrupt:
+        final_msg = (f"⏹️ <b>BTC v4.5.2 중지됨</b>\n"
+                     f"📊 최종실적: <b>{trade_count}회 거래</b>\n"
+                     f"💰 누적수익: {html_safe(safe_price_format(total_profit))}원")
+        send_telegram(final_msg)
         print("\n⏹️ 중지됨")
         break
     except Exception as e:
