@@ -1,0 +1,37 @@
+name: Bithumb Trading Bot
+on:
+  schedule:
+    - cron: '*/15 * * * *'  # 15분마다 자동 실행
+  workflow_dispatch:        # 수동 실행 버튼
+
+jobs:
+  trade:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python 3.9
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pybithumb requests
+    
+    - name: Run trading bot
+      env:
+        BITHUMB_ACCESS: ${{ secrets.BITHUMB_ACCESS }}
+        BITHUMB_SECRET: ${{ secrets.BITHUMB_SECRET }}
+        TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+        TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      run: python bot.py
+      
+    - name: Upload CSV logs
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: btc-profit-logs
+        path: btc_profit_v4.5.csv
